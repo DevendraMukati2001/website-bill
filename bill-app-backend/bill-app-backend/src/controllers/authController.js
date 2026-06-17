@@ -47,7 +47,7 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).select("+password");
 
     if (!user) {
       return res.status(404).json({
@@ -55,18 +55,17 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    const resetToken = crypto.randomBytes(32).toString("hex");
+    // Random password generate
+    const newPassword = Math.random().toString(36).slice(-8);
 
-    user.resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
+    // Update password
+    user.password = newPassword;
 
-    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+    // Clear old reset fields
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
 
     await user.save();
-
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -79,22 +78,23 @@ const forgotPassword = async (req, res) => {
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: user.email,
-      subject: "Password Reset",
+      subject: "New Password",
       html: `
-        <h2>Password Reset</h2>
-        <p>Click below link:</p>
-        <a href="${resetUrl}">${resetUrl}</a>
+        <h2>Password Reset Successful</h2>
+        <p>Your new password is:</p>
+        <h3>${newPassword}</h3>
+        <p>Please login and change it after login.</p>
       `,
     });
 
     res.json({
-      message: "Password reset link sent to email",
+      message: "New password sent to your email",
     });
   } catch (error) {
-    console.error("Error sending password reset email:", error); // Added detailed logging
+    console.error("Forgot Password Error:", error);
+
     res.status(500).json({
-      message: "Failed to send password reset email. Please try again later.", // More user-friendly message
-      error: error.message, // Include the error message for debugging
+      message: error.message,
     });
   }
 };
