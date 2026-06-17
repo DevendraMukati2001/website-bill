@@ -1,0 +1,14 @@
+services:
+  backend:
+    build: ./bill-app-backend/bill-app-backend
+    container_name: bill-backend
+    ports:
+      - "5000:5000"
+
+  frontend:
+    build: ./bill-app-frontend
+    container_name: bill-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
