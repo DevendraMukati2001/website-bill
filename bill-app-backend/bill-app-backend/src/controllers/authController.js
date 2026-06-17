@@ -2,6 +2,7 @@ const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
+
 // Utility function to generate a JWT
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -47,7 +48,7 @@ const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email }).select("+password");
+    const user = await User.findOne({ email });
 
     if (!user) {
       return res.status(404).json({
@@ -55,47 +56,48 @@ const forgotPassword = async (req, res) => {
       });
     }
 
-    // Random password generate
-    const newPassword = Math.random().toString(36).slice(-8);
+    const resetToken = crypto.randomBytes(32).toString("hex");
 
-    // Update password
-    user.password = newPassword;
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
 
-    // Clear old reset fields
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
 
-    await user.save();
+    // IMPORTANT: skip full-document validation here.
+    // Without this, Mongoose tries to re-validate the password field
+    // (which wasn't loaded via findOne), throws a ValidationError,
+    // and the email never gets sent.
+    await user.save({ validateBeforeSave: false });
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false,
-      family: 4, // Force IPv4
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        pass: process.env.EMAIL_PASS, // must be a Gmail App Password, not your normal password
       },
     });
 
     await transporter.sendMail({
       from: process.env.EMAIL_USER,
       to: user.email,
-      subject: "New Password",
+      subject: "Password Reset",
       html: `
-        <h2>Password Reset Successful</h2>
-        <p>Your new password is:</p>
-        <h3>${newPassword}</h3>
-        <p>Please login and change it after login.</p>
+        <h2>Password Reset</h2>
+        <p>Click below link:</p>
+        <a href="${resetUrl}">${resetUrl}</a>
+        <p>This link will expire in 15 minutes.</p>
       `,
     });
 
     res.json({
-      message: "New password sent to your email",
+      message: "Password reset link sent to email",
     });
   } catch (error) {
-    console.error("Forgot Password Error:", error);
-
+    console.error("Forgot password error:", error); // <-- log full error to terminal
     res.status(500).json({
       message: error.message,
     });
@@ -131,6 +133,7 @@ const resetPassword = async (req, res) => {
       message: "Password reset successful",
     });
   } catch (error) {
+    console.error("Reset password error:", error);
     res.status(500).json({
       message: error.message,
     });
