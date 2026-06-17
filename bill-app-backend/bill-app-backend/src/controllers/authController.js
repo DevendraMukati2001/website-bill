@@ -66,8 +66,7 @@ const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    const resetUrl =
-      `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
@@ -92,8 +91,10 @@ const forgotPassword = async (req, res) => {
       message: "Password reset link sent to email",
     });
   } catch (error) {
+    console.error("Error sending password reset email:", error); // Added detailed logging
     res.status(500).json({
-      message: error.message,
+      message: "Failed to send password reset email. Please try again later.", // More user-friendly message
+      error: error.message, // Include the error message for debugging
     });
   }
 };
