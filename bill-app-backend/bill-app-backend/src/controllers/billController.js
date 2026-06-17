@@ -374,7 +374,7 @@ const updateBill = async (req, res) => {
     } = req.body;
 
     // Client resolve karo — name se dhundo
-   const resolvedName = clientNameField || '';
+    const resolvedName = clientNameField || "";
     const clientQuery = gstnum
       ? { gstNumber: gstnum }
       : { name: resolvedName, user: req.user.id };
@@ -718,7 +718,10 @@ const deleteBill = async (req, res) => {
 };
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
+  family: 4,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
