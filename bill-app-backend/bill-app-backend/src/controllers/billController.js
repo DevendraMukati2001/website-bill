@@ -6,6 +6,7 @@ const nodemailer = require("nodemailer");
 const {
   sendOverdueInvoiceEmail,
   sendBirthdayDiscountEmail,
+  sendDeletedInvoiceEmail,
 } = require("../services/emailService");
 
 // @desc    Create a new bill
@@ -374,7 +375,7 @@ const updateBill = async (req, res) => {
     } = req.body;
 
     // Client resolve karo — name se dhundo
-   const resolvedName = clientNameField || '';
+    const resolvedName = clientNameField || "";
     const clientQuery = gstnum
       ? { gstNumber: gstnum }
       : { name: resolvedName, user: req.user.id };
@@ -557,114 +558,10 @@ const permanentDeleteBill = async (req, res) => {
 
     await Bill.findByIdAndDelete(req.params.id);
 
+   
     // ✅ FIX 9: Wrap email in try/catch so email failure doesn't block delete response
     try {
-      await transporter.sendMail({
-        from: process.env.EMAIL_USER,
-        to: process.env.EMAIL_USER1,
-        subject: "Invoice Permanently Deleted",
-
-        html: `
-  <div style="
-    font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    padding: 30px;
-  ">
-    <div style="
-      max-width: 600px;
-      margin: auto;
-      background: #ffffff;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    ">
-
-      <div style="
-        background: #dc2626;
-        padding: 20px;
-        text-align: center;
-      ">
-        <h1 style="
-          color: white;
-          margin: 0;
-          font-size: 24px;
-        ">
-          Invoice Deleted
-        </h1>
-      </div>
-
-      <div style="padding: 25px; color: #374151;">
-
-        <p style="font-size: 15px;">
-          An invoice has been permanently deleted from the system.
-        </p>
-
-        <div style="
-          background: #f9fafb;
-          border-radius: 10px;
-          padding: 18px;
-          margin-top: 20px;
-        ">
-          <h3 style="
-            margin-top: 0;
-            color: #111827;
-          ">
-            Deleted By
-          </h3>
-
-          <p>
-            <strong>Name:</strong> ${req.user.name}
-          </p>
-
-          <p>
-            <strong>Email:</strong> ${req.user.email}
-          </p>
-        </div>
-
-        <div style="
-          background: #f9fafb;
-          border-radius: 10px;
-          padding: 18px;
-          margin-top: 20px;
-        ">
-          <h3 style="
-            margin-top: 0;
-            color: #111827;
-          ">
-            Invoice Details
-          </h3>
-
-          <p>
-            <strong>Invoice Number:</strong> ${bill.invoiceNumber}
-          </p>
-
-          <p>
-            <strong>Total:</strong> ₹${bill.total}
-          </p>
-
-          <p>
-            <strong>Status:</strong> ${bill.status}
-          </p>
-
-          <p>
-            <strong>Date:</strong> ${new Date(bill.date).toLocaleDateString()}
-          </p>
-        </div>
-
-        <p style="
-          margin-top: 25px;
-          font-size: 13px;
-          color: #6b7280;
-          text-align: center;
-        ">
-          This is an automated notification from Invoice System.
-        </p>
-
-      </div>
-    </div>
-  </div>
-  `,
-      });
+      await sendDeletedInvoiceEmail(bill, req.user);
     } catch (mailErr) {
       console.log("MAIL ERROR:", mailErr.message);
     }
@@ -717,21 +614,7 @@ const deleteBill = async (req, res) => {
   }
 };
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
-transporter.verify(function (error, success) {
-  if (error) {
-    console.log("EMAIL ERROR:", error);
-  } else {
-    console.log("Email server is ready");
-  }
-});
 
 module.exports = {
   createBill,

@@ -1,18 +1,14 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
 
-// Create transporter
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// IMPORTANT: yeh domain Resend mein verify hone ke baad hi kaam karega
+const FROM_EMAIL = "Binjwa IT Solutions <noreply@binjwaitsolutions.com>";
 
 /**
  * Send birthday discount email to client
  * @param {Object} client - { name, email }
- * @param {Number} discountAmount - calculated 5% amount
+ * @param {Number} discountAmount - calculated discount amount
  * @param {String} invoiceNumber - optional
  */
 const sendBirthdayDiscountEmail = async (
@@ -23,8 +19,8 @@ const sendBirthdayDiscountEmail = async (
   if (!client?.email) return; // email nahi hai toh skip
 
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
       to: client.email,
       subject: `🎂 Happy Birthday ${client.name}! Special discount from Binjwa IT Solutions`,
       html: `
@@ -72,6 +68,12 @@ you have received an exclusive <strong style="color: #d97706;">30% OFF on AI Age
         </div>
       `,
     });
+
+    if (error) {
+      console.error("Birthday email error:", error);
+      return;
+    }
+
     console.log(`🎂 Birthday email sent to ${client.email}`);
   } catch (err) {
     console.error("Birthday email error:", err.message);
@@ -85,8 +87,8 @@ you have received an exclusive <strong style="color: #d97706;">30% OFF on AI Age
  */
 const sendOverdueInvoiceEmail = async (invoice, client) => {
   try {
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
       to: "binjwaitsolutions@gmail.com",
       subject: `Overdue Invoice Alert - ${invoice.invoiceNumber}`,
       html: `
@@ -118,16 +120,145 @@ const sendOverdueInvoiceEmail = async (invoice, client) => {
           <p style="color: #999; font-size: 12px;">This is an automated notification from the Invoice System.</p>
         </div>
       `,
-    };
+    });
 
-    await transporter.sendMail(mailOptions);
+    if (error) {
+      console.error("Error sending overdue email:", error);
+      return;
+    }
+
     console.log(`Overdue email sent for invoice ${invoice.invoiceNumber}`);
   } catch (error) {
     console.error("Error sending overdue email:", error);
   }
 };
 
+/**
+ * Send notification email when an invoice is permanently deleted
+ * @param {Object} bill - Bill details
+ * @param {Object} user - User who deleted the bill (req.user)
+ */
+const sendDeletedInvoiceEmail = async (bill, user) => {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: process.env.EMAIL_USER1,
+      subject: "Invoice Permanently Deleted",
+      html: `
+  <div style="
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    padding: 30px;
+  ">
+    <div style="
+      max-width: 600px;
+      margin: auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    ">
+
+      <div style="
+        background: #dc2626;
+        padding: 20px;
+        text-align: center;
+      ">
+        <h1 style="
+          color: white;
+          margin: 0;
+          font-size: 24px;
+        ">
+          Invoice Deleted
+        </h1>
+      </div>
+
+      <div style="padding: 25px; color: #374151;">
+
+        <p style="font-size: 15px;">
+          An invoice has been permanently deleted from the system.
+        </p>
+
+        <div style="
+          background: #f9fafb;
+          border-radius: 10px;
+          padding: 18px;
+          margin-top: 20px;
+        ">
+          <h3 style="
+            margin-top: 0;
+            color: #111827;
+          ">
+            Deleted By
+          </h3>
+
+          <p>
+            <strong>Name:</strong> ${user.name}
+          </p>
+
+          <p>
+            <strong>Email:</strong> ${user.email}
+          </p>
+        </div>
+
+        <div style="
+          background: #f9fafb;
+          border-radius: 10px;
+          padding: 18px;
+          margin-top: 20px;
+        ">
+          <h3 style="
+            margin-top: 0;
+            color: #111827;
+          ">
+            Invoice Details
+          </h3>
+
+          <p>
+            <strong>Invoice Number:</strong> ${bill.invoiceNumber}
+          </p>
+
+          <p>
+            <strong>Total:</strong> ₹${bill.total}
+          </p>
+
+          <p>
+            <strong>Status:</strong> ${bill.status}
+          </p>
+
+          <p>
+            <strong>Date:</strong> ${new Date(bill.date).toLocaleDateString()}
+          </p>
+        </div>
+
+        <p style="
+          margin-top: 25px;
+          font-size: 13px;
+          color: #6b7280;
+          text-align: center;
+        ">
+          This is an automated notification from Invoice System.
+        </p>
+
+      </div>
+    </div>
+  </div>
+  `,
+    });
+
+    if (error) {
+      console.log("MAIL ERROR:", error);
+      return;
+    }
+
+    console.log("Deleted invoice notification email sent");
+  } catch (mailErr) {
+    console.log("MAIL ERROR:", mailErr.message);
+  }
+};
+
 module.exports = {
   sendOverdueInvoiceEmail,
-  sendBirthdayDiscountEmail, // ← ye add karo exports mein
+  sendBirthdayDiscountEmail,
+  sendDeletedInvoiceEmail,
 };
