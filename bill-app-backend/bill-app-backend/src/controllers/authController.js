@@ -1,7 +1,9 @@
 const User = require("../models/user");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Utility function to generate a JWT
 const generateToken = (id) => {
@@ -65,27 +67,14 @@ const forgotPassword = async (req, res) => {
 
     user.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
 
-    // IMPORTANT: skip full-document validation here.
-    // Without this, Mongoose tries to re-validate the password field
-    // (which wasn't loaded via findOne), throws a ValidationError,
-    // and the email never gets sent.
+    // Skip full-document validation, since password field
+    // isn't loaded here (findOne doesn't select it).
     await user.save({ validateBeforeSave: false });
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-    const transporter = nodemailer.createTransport({
-  host: "smtp.gmail.com",
-  port: 465,
-  secure: true, // true for port 465
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  connectionTimeout: 10000, // fail fast instead of hanging 120s
-});
-
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    const { data, error } = await resend.emails.send({
+      from: "onboarding@resend.dev", // verified domain hai to apna domain email use karo
       to: user.email,
       subject: "Password Reset",
       html: `
@@ -96,11 +85,18 @@ const forgotPassword = async (req, res) => {
       `,
     });
 
+    if (error) {
+      console.error("Resend error:", error);
+      return res.status(500).json({
+        message: "Failed to send reset email",
+      });
+    }
+
     res.json({
       message: "Password reset link sent to email",
     });
   } catch (error) {
-    console.error("Forgot password error:", error); // <-- log full error to terminal
+    console.error("Forgot password error:", error);
     res.status(500).json({
       message: error.message,
     });
