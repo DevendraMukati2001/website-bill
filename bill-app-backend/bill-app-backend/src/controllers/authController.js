@@ -74,7 +74,7 @@ const forgotPassword = async (req, res) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     const { data, error } = await resend.emails.send({
-      from: "noreply@binjwaitsolutions.com", // verified domain hai to apna domain email use karo
+      from: "info@binjwaitsolutions.com", // verified domain hai to apna domain email use karo
       to: user.email,
       subject: "Password Reset",
       html: `

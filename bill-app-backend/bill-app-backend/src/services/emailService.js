@@ -3,7 +3,7 @@ const { Resend } = require("resend");
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // IMPORTANT: yeh domain Resend mein verify hone ke baad hi kaam karega
-const FROM_EMAIL = "Binjwa IT Solutions <noreply@binjwaitsolutions.com>";
+const FROM_EMAIL = "Binjwa IT Solutions <info@binjwaitsolutions.com>";
 
 /**
  * Send birthday discount email to client
