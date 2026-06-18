@@ -74,7 +74,7 @@ const forgotPassword = async (req, res) => {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
     const { data, error } = await resend.emails.send({
-      from: "info@binjwaitsolutions.com", // verified domain hai to apna domain email use karo
+      from: "onboarding@resend.dev", // verified domain hai to apna domain email use karo
       to: user.email,
       subject: "Password Reset",
       html: `
@@ -86,9 +86,11 @@ const forgotPassword = async (req, res) => {
     });
 
     if (error) {
-      console.error("Resend error:", error);
+      console.error("FULL RESEND ERROR =>", JSON.stringify(error, null, 2));
+
       return res.status(500).json({
-        message: "Failed to send reset email",
+        message: error.message,
+        error,
       });
     }
 
