@@ -71,7 +71,7 @@ const forgotPassword = async (req, res) => {
     // isn't loaded here (findOne doesn't select it).
     await user.save({ validateBeforeSave: false });
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const resetUrl = `${process.env.FRONTEND_URL.replace(/\/$/, "")}/reset-password/${resetToken}`;
 
     const { data, error } = await resend.emails.send({
       from: "info@binjwaitsolutions.com", // verified domain hai to apna domain email use karo
